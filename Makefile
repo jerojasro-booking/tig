@@ -40,6 +40,7 @@ RPM_RELEASE = $(word 2,$(RPM_VERLIST))$(if $(WTDIRTY),.dirty)
 LDLIBS ?= -lcurses
 CFLAGS ?= -Wall -O2
 DFLAGS	= -g -DDEBUG -Werror -O0
+PFLAGS	= -pg
 EXE	= src/tig
 TOOLS	= test/tools/test-graph tools/doc-gen
 TXTDOC	= doc/tig.1.adoc doc/tigrc.5.adoc doc/manual.adoc NEWS.adoc README.adoc INSTALL.adoc
@@ -66,6 +67,9 @@ DOCBOOK2PDF ?= docbook2pdf
 all: $(EXE) $(TOOLS)
 all-debug: $(EXE) $(TOOLS)
 all-debug: CFLAGS += $(DFLAGS)
+all-prof: $(EXE) $(TOOLS)
+all-prof: CFLAGS += $(DFLAGS)
+all-prof: CFLAGS += $(PFLAGS)
 doc: $(ALLDOC)
 doc-man: $(MANDOC)
 doc-html: $(HTMLDOC)
