@@ -19,6 +19,8 @@
 #include "tig/repo.h"
 #include "tig/refdb.h"
 
+#include <glib.h>
+
 static struct ref **refs = NULL;
 static size_t refs_size = 0;
 static struct ref *refs_head = NULL;
@@ -125,6 +127,8 @@ add_to_refs(const char *id, size_t idlen, char *name, size_t namelen, struct ref
 	struct ref *ref = NULL;
 	enum reference_type type = REFERENCE_BRANCH;
 	int pos;
+	static GHashTable* hasht_id;
+	static GHashTable* hasht_name;
 
 	if (!prefixcmp(name, "refs/tags/")) {
 		type = REFERENCE_TAG;
@@ -173,25 +177,37 @@ add_to_refs(const char *id, size_t idlen, char *name, size_t namelen, struct ref
 	 * before the commit id it points to. */
 	int replace = type == REFERENCE_REPLACE;
 
-	if (replace) {
-		for (pos = 0; pos < refs_size; pos++) {
-			int cmp = strcmp(id, refs[pos]->id);
-
-			if (!cmp) {
-				ref = refs[pos];
-				break;
-			}
-		}
-	} else {
-		for (pos = 0; pos < refs_size; pos++) {
-			int cmp = strcmp(name, refs[pos]->name);
-
-			if (!cmp) {
-				ref = refs[pos];
-				break;
-			}
-		}
+	if (refs_size == 0) {
+		hasht_id = g_hash_table_new(g_str_hash, g_str_equal);
+		hasht_name = g_hash_table_new(g_str_hash, g_str_equal);
 	}
+
+	if (replace) {
+		ref = g_hash_table_lookup(hasht_id, id);
+	}
+	else {
+		ref = g_hash_table_lookup(hasht_name, name);
+	}
+
+	//if (replace) {
+	//	for (pos = 0; pos < refs_size; pos++) {
+	//		int cmp = strcmp(id, refs[pos]->id);
+
+	//		if (!cmp) {
+	//			ref = refs[pos];
+	//			break;
+	//		}
+	//	}
+	//} else {
+	//	for (pos = 0; pos < refs_size; pos++) {
+	//		int cmp = strcmp(name, refs[pos]->name);
+
+	//		if (!cmp) {
+	//			ref = refs[pos];
+	//			break;
+	//		}
+	//	}
+	//}
 
 	if (!ref) {
 		if (!realloc_refs(&refs, refs_size, 1))
@@ -200,6 +216,11 @@ add_to_refs(const char *id, size_t idlen, char *name, size_t namelen, struct ref
 		if (!ref)
 			return ERR;
 		refs[refs_size++] = ref;
+
+		//HASH?
+		g_hash_table_insert(hasht_id, (gpointer*)id, ref);
+		g_hash_table_insert(hasht_name, (gpointer*)name, ref);
+		
 		strncpy(ref->name, name, namelen);
 	}
 
