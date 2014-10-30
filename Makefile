@@ -252,11 +252,11 @@ OBJS = $(sort $(TIG_OBJS) $(TEST_GRAPH_OBJS) $(DOC_GEN_OBJS))
 DEPS_CFLAGS ?= -MMD -MP -MF .deps/$*.d
 
 %: %.o
-	$(QUIET_LINK)$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ $(LDLIBS) -o $@
+	$(QUIET_LINK)$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ $(LDLIBS) -lglib-2.0 -o $@
 
 %.o: %.c $(CONFIG_H)
 	@mkdir -p $(abspath .deps/$(*D))
-	$(QUIET_CC)$(CC) -I. -Iinclude $(GLIB_INCLUDES) $(CFLAGS) $(DEPS_CFLAGS) $(CPPFLAGS) -c -o $@ $<
+	$(QUIET_CC)$(CC) -I. -Iinclude -I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include $(CFLAGS) $(DEPS_CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 -include $(OBJS:%.o=.deps/%.d)
 
