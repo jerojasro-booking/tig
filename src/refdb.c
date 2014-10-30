@@ -171,13 +171,16 @@ add_to_refs(const char *id, size_t idlen, char *name, size_t namelen, struct ref
 	 * previous SHA1 with the resolved commit id; relies on the fact
 	 * git-ls-remote lists the commit id of an annotated tag right
 	 * before the commit id it points to. */
-	for (pos = 0; pos < refs_size; pos++) {
-		int cmp = type == REFERENCE_REPLACE
-			? strcmp(id, refs[pos]->id) : strcmp(name, refs[pos]->name);
+	int replace = type == REFERENCE_REPLACE;
 
-		if (!cmp) {
-			ref = refs[pos];
-			break;
+	if (replace) {
+		for (pos = 0; pos < refs_size; pos++) {
+			int cmp = (replace)? strcmp(id, refs[pos]->id) : strcmp(name, refs[pos]->name);
+
+			if (!cmp) {
+				ref = refs[pos];
+				break;
+			}
 		}
 	}
 
