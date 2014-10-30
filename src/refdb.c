@@ -175,7 +175,16 @@ add_to_refs(const char *id, size_t idlen, char *name, size_t namelen, struct ref
 
 	if (replace) {
 		for (pos = 0; pos < refs_size; pos++) {
-			int cmp = (replace)? strcmp(id, refs[pos]->id) : strcmp(name, refs[pos]->name);
+			int cmp = strcmp(id, refs[pos]->id);
+
+			if (!cmp) {
+				ref = refs[pos];
+				break;
+			}
+		}
+	} else {
+		for (pos = 0; pos < refs_size; pos++) {
+			int cmp = strcmp(name, refs[pos]->name);
 
 			if (!cmp) {
 				ref = refs[pos];
