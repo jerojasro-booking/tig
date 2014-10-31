@@ -37,7 +37,10 @@ RPM_VERLIST = $(filter-out g% dirty,$(subst -, ,$(VERSION))) 0
 RPM_VERSION = $(word 1,$(RPM_VERLIST))
 RPM_RELEASE = $(word 2,$(RPM_VERLIST))$(if $(WTDIRTY),.dirty)
 
-LDLIBS ?= -lcurses -lglib-2.0
+GLIB_LDLIBS := $(shell sh -c 'pkg-config --libs glib-2.0 2>/dev/null')
+GLIB_INCLUDES := $(shell sh -c 'pkg-config --cflags glib-2.0 2>/dev/null')
+
+LDLIBS ?= -lcurses $(GLIB_LDLIBS)
 LDFLAGS ?= -L/usr/lib64
 CFLAGS ?= -Wall -O2 
 DFLAGS	= -g -DDEBUG -Werror -O0
@@ -248,11 +251,11 @@ OBJS = $(sort $(TIG_OBJS) $(TEST_GRAPH_OBJS) $(DOC_GEN_OBJS))
 DEPS_CFLAGS ?= -MMD -MP -MF .deps/$*.d
 
 %: %.o
-	$(QUIET_LINK)$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ $(LDLIBS) -lglib-2.0 -o $@
+	$(QUIET_LINK)$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 %.o: %.c $(CONFIG_H)
 	@mkdir -p $(abspath .deps/$(*D))
-	$(QUIET_CC)$(CC) -I. -Iinclude -I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include $(CFLAGS) $(DEPS_CFLAGS) $(CPPFLAGS) -c -o $@ $<
+	$(QUIET_CC)$(CC) -I. -Iinclude $(GLIB_INCLUDES) $(CFLAGS) $(DEPS_CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 -include $(OBJS:%.o=.deps/%.d)
 
