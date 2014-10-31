@@ -18,8 +18,7 @@
 #include "tig/options.h"
 #include "tig/repo.h"
 #include "tig/refdb.h"
-
-#include <glib.h>
+#include "compat/hashtab.h"
 
 static struct ref **refs = NULL;
 static size_t refs_size = 0;
@@ -122,14 +121,40 @@ done_ref_lists(void)
 	ref_lists_size = 0;
 }
 
+static hashval_t
+id_ref_hash(const void *node)
+{
+	return htab_hash_string(((const struct ref*) node)->id);
+}
+
+static hashval_t
+name_ref_hash(const void *node)
+{
+	return htab_hash_string(((const struct ref*) node)->name);
+}
+
+static int
+id_ref_eq(const void *entry, const void *element)
+{
+	return strcmp(((const struct ref *) entry)->id, ((const struct ref *) element)->id) == 0;
+}
+
+static int
+name_ref_eq(const void *entry, const void *element)
+{
+	return strcmp(((const struct ref *) entry)->name, ((const struct ref *) element)->name) == 0;
+}
+
 static int
 add_to_refs(const char *id, size_t idlen, char *name, size_t namelen, struct ref_opt *opt)
 {
 	struct ref *ref = NULL;
 	enum reference_type type = REFERENCE_BRANCH;
 	int pos;
-	static GHashTable* hasht_id;
-	static GHashTable* hasht_name;
+	//static GHashTable* hasht_id;
+	//static GHashTable* hasht_name;
+	static htab_t hasht_id;
+	static htab_t hasht_name;
 
 	if (!prefixcmp(name, "refs/tags/")) {
 		type = REFERENCE_TAG;
@@ -179,36 +204,21 @@ add_to_refs(const char *id, size_t idlen, char *name, size_t namelen, struct ref
 	int replace = type == REFERENCE_REPLACE;
 
 	if (refs_size == 0) {
-		hasht_id = g_hash_table_new(g_str_hash, g_str_equal);
-		hasht_name = g_hash_table_new(g_str_hash, g_str_equal);
+		uint size = 500;
+		hasht_id = htab_create_alloc(size, id_ref_hash, id_ref_eq, NULL, calloc, free);
+		hasht_name = htab_create_alloc(size, name_ref_hash, name_ref_eq, NULL, calloc, free);
+		//hasht_id = g_hash_table_new(g_str_hash, g_str_equal);
+		//hasht_name = g_hash_table_new(g_str_hash, g_str_equal);
 	}
 
 	if (replace) {
-		ref = g_hash_table_lookup(hasht_id, id);
+		//ref = g_hash_table_lookup(hasht_id, id);
+		ref = htab_find(hasht_id, id);
 	}
 	else {
-		ref = g_hash_table_lookup(hasht_name, name);
+		//ref = g_hash_table_lookup(hasht_name, name);
+		ref = htab_find(hasht_name, name);
 	}
-
-	//if (replace) {
-	//	for (pos = 0; pos < refs_size; pos++) {
-	//		int cmp = strcmp(id, refs[pos]->id);
-
-	//		if (!cmp) {
-	//			ref = refs[pos];
-	//			break;
-	//		}
-	//	}
-	//} else {
-	//	for (pos = 0; pos < refs_size; pos++) {
-	//		int cmp = strcmp(name, refs[pos]->name);
-
-	//		if (!cmp) {
-	//			ref = refs[pos];
-	//			break;
-	//		}
-	//	}
-	//}
 
 	if (!ref) {
 		if (!realloc_refs(&refs, refs_size, 1))
@@ -218,9 +228,11 @@ add_to_refs(const char *id, size_t idlen, char *name, size_t namelen, struct ref
 			return ERR;
 		refs[refs_size++] = ref;
 
-		//HASH?
-		g_hash_table_insert(hasht_id, (gpointer*)id, ref);
-		g_hash_table_insert(hasht_name, (gpointer*)name, ref);
+		//Insert into the hash
+		//g_hash_table_insert(hasht_id, (gpointer*)id, ref);
+		//g_hash_table_insert(hasht_name, (gpointer*)name, ref);
+		htab_find_slot(hasht_id, ref, INSERT);
+		htab_find_slot(hasht_name, ref, INSERT);
 		
 		strncpy(ref->name, name, namelen);
 	}
