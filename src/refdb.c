@@ -28,6 +28,8 @@ static struct ref *refs_head = NULL;
 static struct ref_list **ref_lists = NULL;
 static size_t ref_lists_size = 0;
 
+static GHashTable* commits_with_refs = NULL;
+
 DEFINE_ALLOCATOR(realloc_refs, struct ref *, 256)
 DEFINE_ALLOCATOR(realloc_refs_list, struct ref *, 8)
 DEFINE_ALLOCATOR(realloc_ref_lists, struct ref_list *, 8)
@@ -70,31 +72,30 @@ get_ref_list(const char *id)
 {
 	struct ref_list *list;
 	size_t i;
+	if (!commits_with_refs) {
+		// TODO dealloc the hash table
+		commits_with_refs = g_hash_table_new(g_str_hash, g_str_equal);
 
-	for (i = 0; i < ref_lists_size; i++)
-		if (!strcmp(id, ref_lists[i]->id))
-			return ref_lists[i];
-
-	if (!realloc_ref_lists(&ref_lists, ref_lists_size, 1))
-		return NULL;
-	list = calloc(1, sizeof(*list));
-	if (!list)
-		return NULL;
-	string_copy_rev(list->id, id);
-
-	for (i = 0; i < refs_size; i++) {
-		if (!strcmp(id, refs[i]->id) &&
-		    realloc_refs_list(&list->refs, list->size, 1))
-			list->refs[list->size++] = refs[i];
+		for (i = 0; i < refs_size; i++) {
+			list = (struct ref_list*) g_hash_table_lookup(commits_with_refs, refs[i]->id);
+			if (!list) {
+				list = calloc(1, sizeof(*list));
+				if (!list)
+					return NULL;
+				string_copy_rev(list->id, refs[i]->id);
+				g_hash_table_insert(commits_with_refs, (gpointer*)refs[i]->id, list);
+			}
+			if (realloc_refs_list(&list->refs, list->size, 1))
+				list->refs[list->size++] = refs[i];
+		}
 	}
 
-	if (!list->refs) {
-		free(list);
+	list = (struct ref_list*) g_hash_table_lookup(commits_with_refs, id);
+	if (!list) {
 		return NULL;
 	}
 
 	qsort(list->refs, list->size, sizeof(*list->refs), compare_refs);
-	ref_lists[ref_lists_size++] = list;
 	return list;
 }
 
