@@ -124,25 +124,51 @@ done_ref_lists(void)
 static hashval_t
 id_ref_hash(const void *node)
 {
-	return htab_hash_string(((const struct ref*) node)->id);
+	//FILE *fp = fopen("/home/dfranca/debug.out", "a");
+	hashval_t val = htab_hash_string(((const struct ref*) node)->id);
+	//fprintf(fp, "HASH ID: (%s) - (%u)\n", ((const struct ref*) node)->id, val);
+	//fclose(fp);
+	return val;
 }
 
 static hashval_t
 name_ref_hash(const void *node)
 {
-	return htab_hash_string(((const struct ref*) node)->name);
+	//FILE *fp = fopen("/home/dfranca/debug.out", "a");
+	hashval_t val = htab_hash_string(((const struct ref*) node)->name);
+	//fprintf(fp, "HASH NAME: (%s) - (%u)\n", ((const struct ref*) node)->name, val);
+	//fclose(fp);
+	return val;
 }
 
 static int
 id_ref_eq(const void *entry, const void *element)
 {
+	FILE *fp = fopen("/home/dfranca/debug.out", "a");
+	fprintf(fp, "COMPARE ID: (%s) - (%s)\n", ((const struct ref *) entry)->id, ((const struct ref *) element)->id);
+	fclose(fp);
 	return strcmp(((const struct ref *) entry)->id, ((const struct ref *) element)->id) == 0;
 }
 
 static int
 name_ref_eq(const void *entry, const void *element)
 {
-	return strcmp(((const struct ref *) entry)->name, ((const struct ref *) element)->name) == 0;
+	FILE *fp = fopen("/home/dfranca/debug.out", "a");
+	fprintf(fp, "COMPARE NAME: (%s) - (%s)\n", (const char*)((const struct ref *) entry)->name, (const char*)((const struct ref *) element)->name);
+	fclose(fp);
+	return strcmp((const char*)((const struct ref *) entry)->name, (const char*)((const struct ref *) element)->name) == 0;
+}
+
+static void
+id_ref_delete(struct ref *node)
+{
+	return; //free(node);
+}
+
+static void
+key_del(void *key)
+{
+	id_ref_delete((struct ref *) key);
 }
 
 static int
@@ -204,21 +230,28 @@ add_to_refs(const char *id, size_t idlen, char *name, size_t namelen, struct ref
 	int replace = type == REFERENCE_REPLACE;
 
 	if (refs_size == 0) {
-		uint size = 500;
-		hasht_id = htab_create_alloc(size, id_ref_hash, id_ref_eq, NULL, calloc, free);
-		hasht_name = htab_create_alloc(size, name_ref_hash, name_ref_eq, NULL, calloc, free);
+		uint size = 50;
+		hasht_id = htab_create_alloc(size, id_ref_hash, id_ref_eq, key_del, calloc, free);
+		hasht_name = htab_create_alloc(size, name_ref_hash, name_ref_eq, key_del, calloc, free);
 		//hasht_id = g_hash_table_new(g_str_hash, g_str_equal);
 		//hasht_name = g_hash_table_new(g_str_hash, g_str_equal);
 	}
 
+	struct ref *r = (struct ref*)calloc(1, sizeof(*ref) + namelen);
+
+	strcpy(r->id, id);
+	strcpy(r->name, name);
+
 	if (replace) {
 		//ref = g_hash_table_lookup(hasht_id, id);
-		ref = htab_find(hasht_id, id);
+		ref = (struct ref*)htab_find(hasht_id, r);
 	}
 	else {
 		//ref = g_hash_table_lookup(hasht_name, name);
-		ref = htab_find(hasht_name, name);
+		ref = (struct ref*)htab_find(hasht_name, r);
 	}
+
+	//free(r);
 
 	if (!ref) {
 		if (!realloc_refs(&refs, refs_size, 1))
@@ -231,8 +264,8 @@ add_to_refs(const char *id, size_t idlen, char *name, size_t namelen, struct ref
 		//Insert into the hash
 		//g_hash_table_insert(hasht_id, (gpointer*)id, ref);
 		//g_hash_table_insert(hasht_name, (gpointer*)name, ref);
-		htab_find_slot(hasht_id, ref, INSERT);
-		htab_find_slot(hasht_name, ref, INSERT);
+		htab_find_slot(hasht_id, r, INSERT);
+		htab_find_slot(hasht_name, r, INSERT);
 		
 		strncpy(ref->name, name, namelen);
 	}
