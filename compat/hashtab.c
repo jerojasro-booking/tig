@@ -597,9 +597,17 @@ htab_find_with_hash (htab_t htab, const PTR element, hashval_t hash)
   index = htab_mod (hash, htab);
 
   entry = htab->entries[index];
-  if (entry == HTAB_EMPTY_ENTRY
-      || (entry != HTAB_DELETED_ENTRY && (*htab->eq_f) (entry, element)))
+  if (entry == HTAB_EMPTY_ENTRY)
     return entry;
+   if (entry != HTAB_DELETED_ENTRY)
+    {
+      if ((*htab->eq_f) (entry, element)) {
+          FILE* fp = fopen("/home/dfranca/debug.out", "a");
+          fprintf(fp, "\nHTAB_DELETED_ENTRY\n");
+          fclose(fp);
+        }
+        return entry;
+    }
 
   hash2 = htab_mod_m2 (hash, htab);
   for (;;)
