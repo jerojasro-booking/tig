@@ -190,8 +190,6 @@ add_to_refs(const char *id, size_t idlen, char *name, size_t namelen, struct ref
 	struct ref *ref = NULL;
 	enum reference_type type = REFERENCE_BRANCH;
 	int pos;
-	//static GHashTable* hasht_id;
-	//static GHashTable* hasht_name;
 	static htab_t hasht_id;
 	static htab_t hasht_name;
 
@@ -254,15 +252,11 @@ add_to_refs(const char *id, size_t idlen, char *name, size_t namelen, struct ref
 	strcpy(r->name, name);
 	
 	if (replace) {
-		//ref = g_hash_table_lookup(hasht_id, id);
 		ref = (struct ref*)htab_find(hasht_id, r);
 	}
 	else {
-		//ref = g_hash_table_lookup(hasht_name, name);
 		ref = (struct ref*)htab_find(hasht_name, r);
 	}
-
-	//free(r);
 
 	if (!ref) {
 		if (!realloc_refs(&refs, refs_size, 1))
