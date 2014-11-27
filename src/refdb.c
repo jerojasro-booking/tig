@@ -27,7 +27,8 @@ static struct ref *refs_head = NULL;
 static struct ref_list **ref_lists = NULL;
 static size_t ref_lists_size = 0;
 
-static GHashTable* commits_with_refs = NULL;
+//static GHashTable* commits_with_refs = NULL;
+static htab_t hasht_commits_with_refs = NULL;
 
 DEFINE_ALLOCATOR(realloc_refs, struct ref *, 256)
 DEFINE_ALLOCATOR(realloc_refs_list, struct ref *, 8)
@@ -72,6 +73,56 @@ foreach_ref(bool (*visitor)(void *data, const struct ref *ref), void *data)
 			break;
 }
 
+static hashval_t
+id_ref_hash(const void *node)
+{
+	hashval_t val = htab_hash_string(((const struct ref*) node)->id);
+	return val;
+}
+
+static hashval_t
+id_ref_list_hash(const void *node)
+{
+	hashval_t val = htab_hash_string(((const struct ref_list*) node)->id);
+	return val;
+}
+
+static hashval_t
+name_ref_hash(const void *node)
+{
+	hashval_t val = htab_hash_string(((const struct ref*) node)->name);
+	return val;
+}
+
+static int
+id_ref_eq(const void *entry, const void *element)
+{
+	return strcmp(((const struct ref *) entry)->id, ((const struct ref *) element)->id) == 0;
+}
+
+static int
+id_ref_list_eq(const void *entry, const void *element)
+{
+	return strcmp(((const struct ref_list *) entry)->id, ((const struct ref_list *) element)->id) == 0;
+}
+
+static int
+name_ref_eq(const void *entry, const void *element)
+{
+	return strcmp((const char*)((const struct ref *) entry)->name, (const char*)((const struct ref *) element)->name) == 0;
+}
+
+static void
+id_ref_delete(struct ref *node)
+{
+	free(node);
+}
+
+static void
+key_del(void *key)
+{
+	id_ref_delete((struct ref *) key);
+}
 struct ref *
 get_ref_head()
 {
@@ -83,30 +134,48 @@ get_ref_list(const char *id)
 {
 	struct ref_list *list;
 	size_t i;
-	if (!commits_with_refs) {
+	if (!hasht_commits_with_refs) {
 		// TODO dealloc the hash table
-		commits_with_refs = g_hash_table_new(g_str_hash, g_str_equal);
+		uint size = 500;
+		hasht_commits_with_refs = htab_create_alloc(size, id_ref_hash, id_ref_eq, NULL, calloc, free);
+		//commits_with_refs = g_hash_table_new(g_str_hash, g_str_equal);
 
 		for (i = 0; i < refs_size; i++) {
-			list = (struct ref_list*) g_hash_table_lookup(commits_with_refs, refs[i]->id);
+			list = (struct ref_list*) htab_find(hasht_commits_with_refs, refs[i]);
+
 			if (!list) {
 				list = calloc(1, sizeof(*list));
 				if (!list)
 					return NULL;
 				string_copy_rev(list->id, refs[i]->id);
-				g_hash_table_insert(commits_with_refs, (gpointer*)refs[i]->id, list);
+				//g_hash_table_insert(commits_with_refs, (gpointer*)refs[i]->id, list);
+
+				void **slot_id = htab_find_slot(hasht_commits_with_refs, refs[i], INSERT);
+				if (slot_id != NULL && *slot_id == NULL) {
+					*slot_id = list;
+				}
 			}
 			if (realloc_refs_list(&list->refs, list->size, 1))
 				list->refs[list->size++] = refs[i];
 		}
 	}
 
-	list = (struct ref_list*) g_hash_table_lookup(commits_with_refs, id);
+	struct ref r_key;
+	string_copy_rev(r_key.id, id);
+	list = (struct ref_list*) htab_find(hasht_commits_with_refs, &r_key);
 	if (!list) {
 		return NULL;
 	}
 
 	qsort(list->refs, list->size, sizeof(*list->refs), compare_refs);
+
+	FILE* fp = fopen("/home/dfranca/debug.out", "a");
+	for (i=0; i < list->size; i++) {
+		fprintf(fp, "\n\nID: %s\n", list->refs[i]->id);
+		fprintf(fp, "NAME: %s\n", list->refs[i]->name);
+	}
+	fclose(fp);
+
 	return list;
 }
 
@@ -147,43 +216,6 @@ done_ref_lists(void)
 	ref_lists_size = 0;
 }
 
-static hashval_t
-id_ref_hash(const void *node)
-{
-	hashval_t val = htab_hash_string(((const struct ref*) node)->id);
-	return val;
-}
-
-static hashval_t
-name_ref_hash(const void *node)
-{
-	hashval_t val = htab_hash_string(((const struct ref*) node)->name);
-	return val;
-}
-
-static int
-id_ref_eq(const void *entry, const void *element)
-{
-	return strcmp(((const struct ref *) entry)->id, ((const struct ref *) element)->id) == 0;
-}
-
-static int
-name_ref_eq(const void *entry, const void *element)
-{
-	return strcmp((const char*)((const struct ref *) entry)->name, (const char*)((const struct ref *) element)->name) == 0;
-}
-
-static void
-id_ref_delete(struct ref *node)
-{
-	free(node);
-}
-
-static void
-key_del(void *key)
-{
-	id_ref_delete((struct ref *) key);
-}
 
 static int
 add_to_refs(const char *id, size_t idlen, char *name, size_t namelen, struct ref_opt *opt)
