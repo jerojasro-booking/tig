@@ -601,11 +601,11 @@ htab_find_with_hash (htab_t htab, const PTR element, hashval_t hash)
     return entry;
    if (entry != HTAB_DELETED_ENTRY)
     {
-      if ((*htab->eq_f) (entry, element)) {
-          FILE* fp = fopen("/home/dfranca/debug.out", "a");
-          fprintf(fp, "\nHTAB_DELETED_ENTRY\n");
-          fclose(fp);
-        }
+      //if ((*htab->eq_f) (entry, element)) {
+          //FILE* fp = fopen("/home/dfranca/debug.out", "a");
+          //fprintf(fp, "\nHTAB_DELETED_ENTRY\n");
+          //fclose(fp);
+        //}
         return entry;
     }
 
